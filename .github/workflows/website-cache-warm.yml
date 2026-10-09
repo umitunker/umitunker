@@ -61,4 +61,7 @@ jobs:
             fi
           done
           echo "Cache warming: ${success} passed, ${failed} failed"
-          if ((success == 0)); then exit 1; fi
+          if ((failed > 0)); then
+            echo "::error title=Cache warming incomplete::${failed} out of ${#paths[@]} public paths failed"
+            exit 1
+          fi
