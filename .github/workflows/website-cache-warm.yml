@@ -1,0 +1,64 @@
+name: Warm public umitunker.com page cache
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/website-cache-warm.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: umitunker-public-cache-warm
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Prime only public, anonymous navigation pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://www.umitunker.com'
+          paths=(
+            '/'
+            '/ucretsiz-satis-kursu/'
+            '/magnet-satis-akademisi/'
+            '/kurumsal-cozumler/'
+            '/satis-egitimi-deger-odakli-satis/'
+            '/iletisim-egitimi/'
+            '/stratejik-iletisim-egitimi/'
+            '/ikna-egitimi/'
+            '/liderlik-egitimi/'
+            '/yonetici-gelisim-programi/'
+            '/takim-calismasi-egitimi/'
+            '/hakkimda/'
+            '/kitaplarim/'
+            '/bireysel-egitimler-ve-kaynaklar/'
+            '/referanslar/'
+            '/kurumsal-vaka-calismalari/'
+            '/blog/'
+            '/iletisim/'
+          )
+          success=0
+          failed=0
+          for path in "${paths[@]}"; do
+            url="${base}${path}"
+            if result=$(curl --fail --silent --show-error --location \
+              --connect-timeout 6 --max-time 15 --retry 1 --retry-delay 2 \
+              --retry-all-errors --output /dev/null \
+              --write-out '%{http_code} %{time_starttransfer} %{time_total}' "$url"); then
+              echo "PASS ${path} ${result}"
+              success=$((success+1))
+            else
+              echo "::warning title=Cache warm request failed::${path} ${result:-no response}"
+              failed=$((failed+1))
+            fi
+          done
+          echo "Cache warming: ${success} passed, ${failed} failed"
+          if ((success == 0)); then exit 1; fi
